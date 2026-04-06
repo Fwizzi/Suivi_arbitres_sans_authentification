@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Arbitres HB">
+<meta name="theme-color" content="#1D3A7A">
+<link rel="stylesheet" href="styles.css">
+<link rel="apple-touch-icon" href="logo.png">
+<title>Suivi Arbitres Handball</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" as="script">
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" as="script">
+<script src="theme-init.js"></script>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SETUP ════════════════════════════════════════════════════════════ -->
+<div class="setup-screen" id="SS" style="display:none;">
+  <div class="setup-card">
+    <div class="setup-logo"><img src="logo.png" alt="FFHandball"></div>
+
+    <!-- Bannière reprise match en cours -->
+    <div class="resume-banner" id="resumeBanner">
+      <div class="resume-banner-txt">
+        <strong id="resumeTitle">Match en cours</strong>
+        <span id="resumeDesc">Un suivi interrompu a été retrouvé</span>
+      </div>
+      <button class="btn-resume-match" onclick="resumeMatch()">Reprendre</button>
+      <button class="btn-discard-match" onclick="discardMatch()">Supprimer</button>
+    </div>
+
+    <div class="setup-title">Suivi Arbitres Handball</div>
+    <div class="setup-subtitle">Renseignez les informations avant le coup d'envoi</div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button onclick="openHistory()" class="btn-open-hist" style="font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid var(--border-input);background:transparent;color:var(--text-sub);cursor:pointer;font-family:inherit;">Historique</button>
+      <button onclick="toggleTheme()" title="Basculer le thème" style="font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid var(--border-input);background:transparent;color:var(--text-sub);cursor:pointer;font-family:inherit;">Thème</button>
+    </div>
+
+    <div class="sec-label">Match</div>
+    <div class="g3">
+      <div class="sf"><label>Date</label><input type="text" id="mDate" placeholder="jj/mm/aaaa" inputmode="numeric" autocomplete="off"></div>
+      <div class="sf"><label>Heure</label><input type="text" id="mTime" placeholder="hh:mm" inputmode="numeric" autocomplete="off"></div>
+      <div class="sf"><label>Competition</label><input type="text" id="mComp" placeholder="N1, Reg..." autocomplete="off"></div>
+    </div>
+    <div class="sec-label">Equipes</div>
+    <div class="g2">
+      <div class="sf"><label>Equipe A (domicile)</label><input type="text" id="tA" placeholder="Equipe A" autocomplete="off"></div>
+      <div class="sf"><label>Equipe B (visiteur)</label><input type="text" id="tB" placeholder="Equipe B" autocomplete="off"></div>
+    </div>
+    <div class="sec-label">Arbitres</div>
+    <div class="g2">
+      <div class="sf"><label>Arbitre 1</label><input type="text" id="a1" placeholder="Nom arbitre 1" autocomplete="off"></div>
+      <div class="sf"><label>Arbitre 2</label><input type="text" id="a2" placeholder="Nom arbitre 2" autocomplete="off"></div>
+    </div>
+    <button class="btn-start" onclick="startMatch()">Demarrer le suivi</button>
+  </div>
+  <div class="copyright-bar" style="width:100%;max-width:580px;border-radius:0 0 16px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    <span>&copy; <strong>Vincent Guerlach</strong> &mdash; Tous droits reserves</span>
+    <button onclick="exportLogs()" title="Télécharger les logs de session" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid #aaa;background:transparent;color:#888;cursor:pointer;white-space:nowrap;">⬇ Logs</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN — Écran match ══════════════════════════════════════════════ -->
+<div class="main-screen" id="MS" style="display:none;">
+  <div class="topbar">
+    <img class="topbar-logo" onclick="goHome()" title="Retour a l'accueil" src="logo.png" alt="FFHandball">
+    <div class="match-info"><div id="topInfo">Match</div><div class="match-meta" id="topMeta"></div></div>
+    <button class="btn-theme" id="btnTheme" onclick="toggleTheme()" title="Basculer le theme">
+      <div class="btn-theme-icon" id="themeIcon"></div>
+      <span id="themeLabel">SOMBRE</span>
+    </button>
+    <button class="btn-end" onclick="endMatch()">Fin de match</button>
+  </div>
+  <div class="prolong-banner" id="PB">
+    <span>Fin du temps reglementaire. Activer les prolongations (2x5 min) ?</span>
+    <button class="btn-prolong" onclick="activerProlong()">Activer</button>
+  </div>
+  <div class="content">
+    <div class="left-panel">
+      <div class="card">
+        <div class="card-title">Chronometre</div>
+        <span class="period-badge p-mt1" id="PBadge">MT1</span>
+        <div class="chrono-num" id="CD">00:00</div>
+        <div class="row2">
+          <button class="bc go" id="BSS" onclick="toggleChrono()">Demarrer</button>
+          <button class="bc" onclick="resetChrono()">Reinit.</button>
+        </div>
+        <div class="recal-wrap">
+          <div class="recal-label">Recalage du temps</div>
+          <div class="recal-input-row">
+            <input class="recal-field" type="text" id="rMin" placeholder="mm" maxlength="2" inputmode="numeric">
+            <span class="recal-sep">:</span>
+            <input class="recal-field" type="text" id="rSec" placeholder="ss" maxlength="2" inputmode="numeric">
+            <button class="btn-apply" onclick="applyRecal()">Appliquer</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Score</div>
+        <div class="score-grid">
+          <div class="score-team"><div class="stn" id="sTA">Eq.A</div><div class="score-num" id="sA">0</div><div class="score-btns"><button class="bs" onclick="chgScore('A',1)">+</button><button class="bs" onclick="chgScore('A',-1)">-</button></div></div>
+          <div class="score-sep-d">:</div>
+          <div class="score-team"><div class="stn" id="sTB">Eq.B</div><div class="score-num" id="sB">0</div><div class="score-btns"><button class="bs" onclick="chgScore('B',1)">+</button><button class="bs" onclick="chgScore('B',-1)">-</button></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Temps morts (TME)</div>
+        <table class="tme-table"><thead><tr><th>#</th><th id="thA">Eq.A</th><th id="thB">Eq.B</th></tr></thead><tbody id="tmeBody"></tbody></table>
+        <div class="tme-paused" id="tmeP">Chrono en pause &mdash; temps mort<button class="btn-resume" onclick="resumeTme()">Reprendre</button></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Contexte du match</div>
+        <textarea class="ctx-area" id="ctxTA" oninput="window.App.autosave()" placeholder="Elements de contexte... (clavier ou Apple Pencil)"></textarea>
+      </div>
+      <div class="copyright-bar-inline"></div>
+    </div>
+
+    <!-- ══ QUICK NOTES — remplace l'ancien formulaire ══ -->
+    <div class="card">
+      <div class="obs-controls" style="margin-bottom:8px;">
+        <div class="card-title" style="margin-bottom:0;">Observations rapides</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-left:6px;">Tap = popup tags</div>
+        <div class="obs-cnt" id="OC">0 obs.</div>
+      </div>
+      <div id="quickNotesWrap"></div>
+    </div>
+
+    <div class="card" style="overflow-y:auto;">
+      <div class="obs-controls">
+        <div class="card-title" style="margin-bottom:0;">Observations</div>
+        <label>Tri :</label>
+        <select id="sortSel" onchange="renderTable()">
+          <option value="time_desc">Heure (recent en haut)</option>
+          <option value="cat">Categorie</option>
+          <option value="arb">Arbitre</option>
+          <option value="col">Couleur</option>
+        </select>
+      </div>
+      <div class="obs-wrap"><table class="olist"><thead><tr><th>Heure</th><th>MT</th><th>Arbitre</th><th>Categorie</th><th>Type</th><th>Commentaire</th></tr></thead>
+      <tbody id="OTB"><tr><td colspan="6" class="empty">Aucune observation</td></tr></tbody></table></div>
+    </div>
+  </div>
+  <div class="copyright-bar"></div>
+</div>
+
+<!-- ═══ OVERLAY DETAIL (appui long) ═════════════════════════════════════ -->
+<div class="qn-overlay" id="detailOverlay">
+  <div class="qn-sheet">
+    <div class="qn-detail-header">
+      <span class="qn-detail-title" id="detailTitle">Catégorie</span>
+      <span class="qn-detail-meta" id="detailMeta">A1 · 00:00 · MT1</span>
+    </div>
+    <div class="qn-detail-label">Tags rapides</div>
+    <div class="qn-tags-wrap" id="detailTags"></div>
+    <div class="qn-detail-label">Note libre</div>
+    <textarea class="qn-detail-textarea" id="detailNote" placeholder="Ajouter un commentaire..."></textarea>
+    <div class="qn-detail-actions">
+      <button class="qn-btn-cancel" onclick="closeDetail()">Annuler</button>
+      <button class="qn-btn-save" onclick="saveDetail()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ END — Synthèse ══════════════════════════════════════════════════ -->
+<div class="end-screen" id="ES" style="display:none;">
+  <div class="end-header">
+    <div><h2 id="ET">Synthese</h2><div style="font-size:12px;color:#888;margin-top:3px;" id="EM"></div></div>
+    <div class="end-acts">
+      <button class="btn-theme-adaptive" onclick="toggleTheme()" title="Basculer le thème"><div class="btn-theme-icon"></div><span>SOMBRE</span></button>
+      <button class="btn-act" onclick="backMatch()">Retour</button>
+      <button class="btn-act prim" id="BExp" onclick="exportPDF()">Exporter PDF</button>
+    </div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div class="card-title">Score final</div>
+    <div id="EHtScore" style="font-size:13px;color:var(--text-hint);margin-bottom:4px;display:none;"></div>
+    <div style="font-size:32px;font-weight:700;padding:8px 0;color:var(--score-color);" id="ESc">0 : 0</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Contexte du match</div>
+    <textarea class="ctx-area" id="ECtxEdit" placeholder="Elements de contexte : niveau des equipes, enjeux, ambiance salle... (clavier ou Apple Pencil)" oninput="window.App.autosave()"></textarea>
+  </div>
+  <div class="card"><div class="card-title">Evaluation generale du match</div><div id="QC"></div></div>
+
+  <div class="card" id="synCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+      <div class="card-title" style="margin-bottom:0;">Synthese par categorie</div>
+    </div>
+    <div class="syn-filters">
+      <div class="syn-filter-group">
+        <span class="syn-filter-label">Arbitre</span>
+        <div class="syn-filter-btns">
+          <button class="syn-fb active" id="sfArb-all" onclick="setSynFilter('arb','all')">Les deux</button>
+          <button class="syn-fb" id="sfArb-A1" onclick="setSynFilter('arb','A1')"></button>
+          <button class="syn-fb" id="sfArb-A2" onclick="setSynFilter('arb','A2')"></button>
+        </div>
+      </div>
+      <div class="syn-filter-group">
+        <span class="syn-filter-label">Periode</span>
+        <div class="syn-filter-btns">
+          <button class="syn-fb active" id="sfPer-all" onclick="setSynFilter('per','all')">Tout</button>
+          <button class="syn-fb" id="sfPer-MT1" onclick="setSynFilter('per','MT1')">MT1</button>
+          <button class="syn-fb" id="sfPer-MT2" onclick="setSynFilter('per','MT2')">MT2</button>
+        </div>
+      </div>
+    </div>
+    <div class="syn-radar-wrap">
+      <div id="synRadar" class="syn-radar-svg"></div>
+      <div id="synDetail" class="syn-detail-panel"></div>
+    </div>
+  </div>
+
+  <div class="card" style="overflow-y:auto;">
+    <div class="obs-controls">
+      <div class="card-title" style="margin-bottom:0;">Toutes les observations</div>
+      <label>Tri :</label>
+      <select id="sortSelE" onchange="renderEndTable()">
+        <option value="time_desc">Heure (recent en haut)</option>
+        <option value="cat">Categorie</option>
+        <option value="arb">Arbitre</option>
+        <option value="col">Couleur</option>
+      </select>
+    </div>
+    <div class="obs-wrap"><table class="olist"><thead><tr><th>Heure</th><th>MT</th><th>Arbitre</th><th>Categorie</th><th>Type</th><th>Commentaire</th></tr></thead>
+    <tbody id="EETB"></tbody></table></div>
+  </div>
+  <div class="card"><div class="card-title">Commentaire global</div><textarea class="gc-ta" id="GC" placeholder="Synthese generale, points forts, axes d'amelioration..."></textarea></div>
+  <div class="copyright-bar" style="border-radius:10px;"></div>
+</div>
+
+<!-- ═══ HISTORIQUE ═══════════════════════════════════════════════════════ -->
+<div class="hist-screen" id="HistS" style="display:none;">
+  <div class="hist-header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img class="topbar-logo" onclick="goHome()" title="Retour accueil" src="logo.png" style="height:36px;cursor:pointer;">
+      <div>
+        <h2 style="font-size:20px;font-weight:700;">Historique des matchs</h2>
+        <div style="font-size:11px;color:#888;" id="histCount"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-theme-adaptive" onclick="toggleTheme()" title="Basculer le thème"><div class="btn-theme-icon"></div><span>SOMBRE</span></button>
+      <button class="btn-act" onclick="goHome()">&#8592; Accueil</button>
+    </div>
+  </div>
+  <div id="histList" style="display:flex;flex-direction:column;gap:12px;padding:16px;overflow-y:auto;flex:1;"></div>
+</div>
+
+<div class="alert-overlay" id="AO"><div class="alert-box"><p id="AM"></p><button onclick="closeAlert()">OK</button></div></div>
+
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
